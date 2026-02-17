@@ -36,7 +36,7 @@ func TestRequestLineParse(t *testing.T) {
 		data:            "GET / HTTP/1.1\r\nHost: localhost:42069\r\nUser-Agent: curl/7.81.0\r\nAccept: */*\r\n\r\n",
 		numBytesPerRead: 3,
 	}
-	r, err := RequestFromReader(reader)
+	r, err := FromReader(reader)
 	require.NoError(t, err)
 	require.NotNil(t, r)
 	assert.Equal(t, "GET", r.RequestLine.Method)
@@ -48,7 +48,7 @@ func TestRequestLineParse(t *testing.T) {
 		data:            "GET /coffee HTTP/1.1\r\nHost: localhost:42069\r\nUser-Agent: curl/7.81.0\r\nAccept: */*\r\n\r\n",
 		numBytesPerRead: 1,
 	}
-	r, err = RequestFromReader(reader)
+	r, err = FromReader(reader)
 	require.NoError(t, err)
 	require.NotNil(t, r)
 	assert.Equal(t, "GET", r.RequestLine.Method)
@@ -60,7 +60,7 @@ func TestRequestLineParse(t *testing.T) {
 		data:            "POST /coffee HTTP/1.1\r\nHost: localhost:42069\r\nUser-Agent: curl/7.81.0\r\nAccept: */*\r\n\r\n",
 		numBytesPerRead: 5,
 	}
-	r, err = RequestFromReader(reader)
+	r, err = FromReader(reader)
 	require.NoError(t, err)
 	require.NotNil(t, r)
 	assert.Equal(t, "POST", r.RequestLine.Method)
@@ -72,7 +72,7 @@ func TestRequestLineParse(t *testing.T) {
 		data:            "/coffee HTTP/1.1\r\nHost: localhost:42069\r\nUser-Agent: curl/7.81.0\r\nAccept: */*\r\n\r\n",
 		numBytesPerRead: 3,
 	}
-	r, err = RequestFromReader(reader)
+	r, err = FromReader(reader)
 	require.Error(t, err)
 
 	// Test: Invalid method (out of order) Request line
@@ -80,7 +80,7 @@ func TestRequestLineParse(t *testing.T) {
 		data:            "/coffee POST HTTP/1.1\r\nHost: localhost:42069\r\nUser-Agent: curl/7.81.0\r\nAccept: */*\r\n\r\n",
 		numBytesPerRead: 3,
 	}
-	r, err = RequestFromReader(reader)
+	r, err = FromReader(reader)
 	require.Error(t, err)
 
 	// Test: Invalid version in Request line
@@ -88,6 +88,6 @@ func TestRequestLineParse(t *testing.T) {
 		data:            "OPTIONS /prime/rib TCP/1.1\r\nHost: localhost:42069\r\nUser-Agent: curl/7.81.0\r\nAccept: */*\r\n\r\n",
 		numBytesPerRead: 50,
 	}
-	r, err = RequestFromReader(reader)
+	r, err = FromReader(reader)
 	require.Error(t, err)
 }

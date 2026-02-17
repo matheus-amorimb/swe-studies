@@ -22,7 +22,7 @@ type Line struct {
 const crlf = "\r\n"
 const bufferSize = 8
 
-func RequestFromReader(reader io.Reader) (*Request, error) {
+func FromReader(reader io.Reader) (*Request, error) {
 	//initialize buffer to store data which will be processed
 	buf := make([]byte, bufferSize)
 	readToIndex := 0
@@ -50,6 +50,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 			return nil, err
 		}
 
+		//once it's parsed, it can be discarded from the buffer to save memory.
 		//copy(buf, buf[numBytesParsed:])
 		//readToIndex -= numBytesParsed
 	}

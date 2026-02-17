@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmd/tcplistener/internal/request"
 	"errors"
 	"fmt"
 	"io"
@@ -28,9 +29,19 @@ func main() {
 
 		fmt.Println("Accepted connection from ", conn.RemoteAddr())
 
-		for line := range getLinesChannel(conn) {
-			fmt.Println(line)
+		req, err := request.FromReader(conn)
+		if err != nil {
+			log.Fatalf("Error parsing request from listener...")
 		}
+
+		fmt.Println("Request line:")
+		fmt.Println("- Method:", req.RequestLine.Method)
+		fmt.Println("- Target:", req.RequestLine.Target)
+		fmt.Println("- Version:", req.RequestLine.HttpVersion)
+
+		//for line := range getLinesChannel(conn) {
+		//	fmt.Println(line)
+		//}
 	}
 
 }
