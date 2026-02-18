@@ -26,20 +26,56 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 		return len(crlf), true, nil
 	}
 
-	keyValueSeparatorIdx := bytes.Index(data, []byte(keyValueSeparator))
+	keyValueSeparatorIdx := bytes.Index(data[:newLineIdx], []byte(keyValueSeparator))
 	key := string(data[:keyValueSeparatorIdx])
 	value := string(data[keyValueSeparatorIdx+1 : newLineIdx])
 
-	keyNormalized := strings.TrimRight(key, " ")
-	if key != keyNormalized {
+	keyWithoutTrailingSpace := strings.TrimSpace(key)
+	if key != keyWithoutTrailingSpace {
 		return 0, false, fmt.Errorf("invalid header name: %s", key)
 	}
 
+	err = isValidKey(keyWithoutTrailingSpace)
+	if err != nil {
+		return 0, false, err
+	}
+
+	fmt.Println(keyWithoutTrailingSpace)
+
 	valueNormalized := strings.TrimSpace(value)
-	keyNormalized = strings.TrimSpace(keyNormalized)
-	fmt.Println(keyNormalized)
-	fmt.Println(valueNormalized)
+	keyNormalized := strings.ToLower(keyWithoutTrailingSpace)
+
+	currentKeyValue, ok := h[keyNormalized]
+	if ok {
+		valueNormalized = strings.Join([]string{
+			currentKeyValue,
+			valueNormalized,
+		}, ", ")
+	}
 	h[keyNormalized] = valueNormalized
 
 	return newLineIdx + len(crlf), false, nil
+}
+
+func isValidKey(s string) error {
+	if s == "" {
+		return fmt.Errorf("invalid header: cannot be empty")
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if !isFieldChar(c) {
+			return fmt.Errorf("invalid header: %s", s)
+		}
+	}
+	return nil
+}
+
+func isFieldChar(c byte) bool {
+	return c == '!' || c == '#' || c == '$' || c == '%' ||
+		c == '&' || c == '\'' || c == '*' || c == '+' ||
+		c == '-' || c == '.' || c == '^' || c == '_' ||
+		c == '`' || c == '|' || c == '~' ||
+		(c >= '0' && c <= '9') ||
+		(c >= 'A' && c <= 'Z') ||
+		(c >= 'a' && c <= 'z')
 }
