@@ -23,9 +23,9 @@ type Line struct {
 }
 
 const (
-	RequestStateInitialized RequestState = iota
-	RequestStateDone
-	RequestStateParsingHeaders
+	StateInitialized RequestState = iota
+	StateParsingHeaders
+	StateDone
 )
 const crlf = "\r\n"
 const bufferSize = 8
@@ -35,9 +35,10 @@ func FromReader(reader io.Reader) (*Request, error) {
 	buf := make([]byte, bufferSize)
 	readToIndex := 0
 	req := &Request{
-		State: RequestStateInitialized,
+		State:   StateInitialized,
+		Headers: headers.NewHeaders(),
 	}
-	for req.State != RequestStateDone {
+	for req.State != StateDone {
 		if readToIndex >= len(buf) {
 			newBuf := make([]byte, len(buf)*2)
 			copy(newBuf, buf)
@@ -47,7 +48,10 @@ func FromReader(reader io.Reader) (*Request, error) {
 		numBytesRead, err := reader.Read(buf[readToIndex:])
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				req.State = 1
+				if req.State != StateDone {
+					return nil, fmt.Errorf("incomplete request, in state: %d, read n bytes on EOF: %d", req.State, numBytesRead)
+				}
+				println("EOF")
 				break
 			}
 			return nil, err
@@ -67,26 +71,45 @@ func FromReader(reader io.Reader) (*Request, error) {
 }
 
 func (r *Request) parse(data []byte) (int, error) {
-	if r.State == RequestStateDone {
+	if r.State == StateDone {
 		return 0, fmt.Errorf("error: trying to read data in a done state")
 	}
+	if r.State == StateParsingHeaders {
+		idxToRead := 0
+		for {
+			n, done, err := r.Headers.Parse(data[idxToRead:])
+			if err != nil {
+				return 0, err
+			}
+			if n == 0 {
+				return 0, nil
+			}
 
-	if r.State == RequestStateParsingHeaders {
+			if done {
+				println("done: ", idxToRead)
+				r.State = StateDone
+			}
+
+			idxToRead += n
+			return idxToRead, nil
+		}
+	}
+	if r.State == StateInitialized {
+		requestLine, bytesRead, err := parseRequestLine(data)
+		if err != nil {
+			//Something went wrong
+			return 0, err
+		}
+		if bytesRead == 0 {
+			//Just need more data
+			return 0, nil
+		}
+		r.RequestLine = *requestLine
+		r.State = StateParsingHeaders
+		return bytesRead, nil
 	}
 
-	requestLine, bytesRead, err := parseRequestLine(data)
-	//fmt.Println(string(data))
-	if err != nil {
-		//Something went wrong
-		return 0, err
-	}
-	if bytesRead == 0 {
-		//Just need more data
-		return 0, nil
-	}
-	r.RequestLine = *requestLine
-	r.State = RequestStateParsingHeaders
-	return bytesRead, nil
+	return 0, fmt.Errorf("error: trying to read data in an unknown state")
 }
 
 // At the end of the day, I must pass the complete line to this method.

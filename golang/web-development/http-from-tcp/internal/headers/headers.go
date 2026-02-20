@@ -17,7 +17,6 @@ func NewHeaders() Headers {
 
 func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	newLineIdx := bytes.Index(data, []byte(crlf))
-	println("newLineIdx:", newLineIdx)
 	if newLineIdx == -1 {
 		return 0, false, nil
 	}
@@ -55,6 +54,7 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 		}, ", ")
 	}
 	h[keyNormalized] = valueNormalized
+	//println(keyNormalized, valueNormalized)
 
 	return newLineIdx + len(crlf), false, nil
 }
