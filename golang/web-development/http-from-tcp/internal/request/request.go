@@ -2,15 +2,18 @@ package request
 
 import (
 	"bytes"
+	"cmd/tcplistener/internal/headers"
 	"errors"
 	"fmt"
 	"io"
 	"strings"
 )
 
+type RequestState int
 type Request struct {
 	RequestLine Line
-	State       int
+	Headers     headers.Headers
+	State       RequestState
 }
 
 type Line struct {
@@ -19,6 +22,11 @@ type Line struct {
 	Method      string
 }
 
+const (
+	RequestStateInitialized RequestState = iota
+	RequestStateDone
+	RequestStateParsingHeaders
+)
 const crlf = "\r\n"
 const bufferSize = 8
 
@@ -27,9 +35,9 @@ func FromReader(reader io.Reader) (*Request, error) {
 	buf := make([]byte, bufferSize)
 	readToIndex := 0
 	req := &Request{
-		State: 0,
+		State: RequestStateInitialized,
 	}
-	for req.State != 1 {
+	for req.State != RequestStateDone {
 		if readToIndex >= len(buf) {
 			newBuf := make([]byte, len(buf)*2)
 			copy(newBuf, buf)
@@ -45,24 +53,29 @@ func FromReader(reader io.Reader) (*Request, error) {
 			return nil, err
 		}
 		readToIndex += numBytesRead
-		_, err = req.parse(buf[:readToIndex])
+		numBytesParsed, err := req.parse(buf[:readToIndex])
 		if err != nil {
 			return nil, err
 		}
 
 		//once it's parsed, it can be discarded from the buffer to save memory.
-		//copy(buf, buf[numBytesParsed:])
-		//readToIndex -= numBytesParsed
+		copy(buf, buf[numBytesParsed:])
+		readToIndex -= numBytesParsed
 	}
 
 	return req, nil
 }
 
 func (r *Request) parse(data []byte) (int, error) {
-	if r.State == 1 {
+	if r.State == RequestStateDone {
 		return 0, fmt.Errorf("error: trying to read data in a done state")
 	}
+
+	if r.State == RequestStateParsingHeaders {
+	}
+
 	requestLine, bytesRead, err := parseRequestLine(data)
+	//fmt.Println(string(data))
 	if err != nil {
 		//Something went wrong
 		return 0, err
@@ -72,7 +85,7 @@ func (r *Request) parse(data []byte) (int, error) {
 		return 0, nil
 	}
 	r.RequestLine = *requestLine
-	r.State = 1
+	r.State = RequestStateParsingHeaders
 	return bytesRead, nil
 }
 

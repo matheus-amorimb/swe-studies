@@ -17,6 +17,7 @@ func NewHeaders() Headers {
 
 func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	newLineIdx := bytes.Index(data, []byte(crlf))
+	println("newLineIdx:", newLineIdx)
 	if newLineIdx == -1 {
 		return 0, false, nil
 	}
@@ -27,6 +28,9 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	}
 
 	keyValueSeparatorIdx := bytes.Index(data[:newLineIdx], []byte(keyValueSeparator))
+	if keyValueSeparatorIdx == -1 {
+		return 0, false, fmt.Errorf(`invalid header: missing key value separator`)
+	}
 	key := string(data[:keyValueSeparatorIdx])
 	value := string(data[keyValueSeparatorIdx+1 : newLineIdx])
 
@@ -39,8 +43,6 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	if err != nil {
 		return 0, false, err
 	}
-
-	fmt.Println(keyWithoutTrailingSpace)
 
 	valueNormalized := strings.TrimSpace(value)
 	keyNormalized := strings.ToLower(keyWithoutTrailingSpace)
