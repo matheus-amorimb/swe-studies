@@ -82,16 +82,14 @@ func (r *Request) parse(data []byte) (int, error) {
 				return 0, err
 			}
 			if n == 0 {
-				return 0, nil
+				return idxToRead, nil
 			}
 
 			if done {
-				println("done: ", idxToRead)
 				r.State = StateDone
 			}
 
 			idxToRead += n
-			return idxToRead, nil
 		}
 	}
 	if r.State == StateInitialized {

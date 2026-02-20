@@ -38,10 +38,10 @@ func main() {
 		fmt.Println("- Method:", req.RequestLine.Method)
 		fmt.Println("- Target:", req.RequestLine.Target)
 		fmt.Println("- Version:", req.RequestLine.HttpVersion)
-
-		//for line := range getLinesChannel(conn) {
-		//	fmt.Println(line)
-		//}
+		fmt.Println("Headers:")
+		for key, value := range req.Headers {
+			fmt.Println(fmt.Sprintf("- %s: %s", key, value))
+		}
 	}
 
 }
