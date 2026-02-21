@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 )
 
@@ -13,6 +14,7 @@ type RequestState int
 type Request struct {
 	RequestLine Line
 	Headers     headers.Headers
+	Body        []byte
 	State       RequestState
 }
 
@@ -25,6 +27,7 @@ type Line struct {
 const (
 	StateInitialized RequestState = iota
 	StateParsingHeaders
+	StateParsingBody
 	StateDone
 )
 const crlf = "\r\n"
@@ -37,6 +40,7 @@ func FromReader(reader io.Reader) (*Request, error) {
 	req := &Request{
 		State:   StateInitialized,
 		Headers: headers.NewHeaders(),
+		Body:    make([]byte, 0),
 	}
 	for req.State != StateDone {
 		if readToIndex >= len(buf) {
@@ -71,28 +75,30 @@ func FromReader(reader io.Reader) (*Request, error) {
 }
 
 func (r *Request) parse(data []byte) (int, error) {
-	if r.State == StateDone {
+	switch r.State {
+	case StateDone:
 		return 0, fmt.Errorf("error: trying to read data in a done state")
-	}
-	if r.State == StateParsingHeaders {
+	case StateParsingHeaders:
 		idxToRead := 0
 		for {
 			n, done, err := r.Headers.Parse(data[idxToRead:])
 			if err != nil {
 				return 0, err
 			}
+			idxToRead += n
 			if n == 0 {
 				return idxToRead, nil
 			}
-
 			if done {
-				r.State = StateDone
+				if _, ok := r.Headers.Get("Content-Length"); !ok {
+					r.State = StateDone
+				} else {
+					r.State = StateParsingBody
+				}
+				return idxToRead, nil
 			}
-
-			idxToRead += n
 		}
-	}
-	if r.State == StateInitialized {
+	case StateInitialized:
 		requestLine, bytesRead, err := parseRequestLine(data)
 		if err != nil {
 			//Something went wrong
@@ -105,9 +111,35 @@ func (r *Request) parse(data []byte) (int, error) {
 		r.RequestLine = *requestLine
 		r.State = StateParsingHeaders
 		return bytesRead, nil
+	case StateParsingBody:
+		contentLenStr, ok := r.Headers.Get("Content-Length")
+		if !ok {
+			r.State = StateDone
+			return len(data), nil
+		}
+		contentLen, err := strconv.Atoi(contentLenStr)
+		if err != nil {
+			return 0, fmt.Errorf("malformed Content-Length: %s", err)
+		}
+		r.Body = append(r.Body, data...)
+		bodyLenRead := len(r.Body)
+		if bodyLenRead > contentLen {
+			return 0, fmt.Errorf("body larger than content-length header %d", contentLen)
+		}
+
+		if len(r.Body) == contentLen {
+			r.State = StateDone
+		}
+
+		return len(data), nil
 	}
 
 	return 0, fmt.Errorf("error: trying to read data in an unknown state")
+}
+
+func (r *Request) ParseBody(data []byte) (int, error) {
+	r.Body = append(r.Body, data...)
+	return len(data), nil
 }
 
 // At the end of the day, I must pass the complete line to this method.

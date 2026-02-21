@@ -59,6 +59,12 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	return newLineIdx + len(crlf), false, nil
 }
 
+func (h Headers) Get(key string) (string, bool) {
+	keyNormalized := strings.ToLower(key)
+	value, ok := h[keyNormalized]
+	return value, ok
+}
+
 func isValidKey(s string) error {
 	if s == "" {
 		return fmt.Errorf("invalid header: cannot be empty")
