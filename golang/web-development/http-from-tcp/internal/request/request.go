@@ -34,7 +34,6 @@ const crlf = "\r\n"
 const bufferSize = 8
 
 func FromReader(reader io.Reader) (*Request, error) {
-	//initialize buffer to store data which will be processed
 	buf := make([]byte, bufferSize)
 	readToIndex := 0
 	req := &Request{
@@ -75,42 +74,45 @@ func FromReader(reader io.Reader) (*Request, error) {
 }
 
 func (r *Request) parse(data []byte) (int, error) {
-	switch r.State {
-	case StateDone:
-		return 0, fmt.Errorf("error: trying to read data in a done state")
-	case StateParsingHeaders:
-		idxToRead := 0
-		for {
-			n, done, err := r.Headers.Parse(data[idxToRead:])
-			if err != nil {
-				return 0, err
-			}
-			idxToRead += n
-			if n == 0 {
-				return idxToRead, nil
-			}
-			if done {
-				if _, ok := r.Headers.Get("Content-Length"); !ok {
-					r.State = StateDone
-				} else {
-					r.State = StateParsingBody
-				}
-				return idxToRead, nil
-			}
+	totalBytesParsed := 0
+	for r.State != StateDone {
+		numBytesParsed, err := r.parseSinglePart(data[totalBytesParsed:])
+		if err != nil {
+			return 0, err
 		}
+		if numBytesParsed == 0 {
+			return totalBytesParsed, nil
+		}
+		totalBytesParsed += numBytesParsed
+	}
+
+	return totalBytesParsed, nil
+}
+
+func (r *Request) parseSinglePart(data []byte) (int, error) {
+	switch r.State {
 	case StateInitialized:
-		requestLine, bytesRead, err := parseRequestLine(data)
+		requestLine, bytesParsed, err := parseRequestLine(data)
 		if err != nil {
 			//Something went wrong
 			return 0, err
 		}
-		if bytesRead == 0 {
+		if bytesParsed == 0 {
 			//Just need more data
 			return 0, nil
 		}
 		r.RequestLine = *requestLine
 		r.State = StateParsingHeaders
-		return bytesRead, nil
+		return bytesParsed, nil
+	case StateParsingHeaders:
+		bytesParsed, done, err := r.Headers.Parse(data)
+		if err != nil {
+			return 0, err
+		}
+		if done {
+			r.State = StateParsingBody
+		}
+		return bytesParsed, nil
 	case StateParsingBody:
 		contentLenStr, ok := r.Headers.Get("Content-Length")
 		if !ok {
@@ -132,14 +134,11 @@ func (r *Request) parse(data []byte) (int, error) {
 		}
 
 		return len(data), nil
+	case StateDone:
+		return 0, fmt.Errorf("error: trying to parse data in a done state")
+	default:
+		return 0, fmt.Errorf("error: trying to parse data in a unknown state")
 	}
-
-	return 0, fmt.Errorf("error: trying to read data in an unknown state")
-}
-
-func (r *Request) ParseBody(data []byte) (int, error) {
-	r.Body = append(r.Body, data...)
-	return len(data), nil
 }
 
 // At the end of the day, I must pass the complete line to this method.
