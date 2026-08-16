@@ -24,9 +24,15 @@ func main() {
 	d := NewDynamicArray()
 	d.append(1)
 	d.append(2)
-	fmt.Println(d.get(0))
-	fmt.Println(d.get(1))
-	fmt.Println(d.size())
+	d.append(3)
+	d.append(4)
+	d.append(5)
+	d.insert(2, 5)
+	fmt.Printf("[")
+	for i := 0; i < d.Size; i++ {
+		fmt.Printf(" %v ", d.FixedSizeArray[i])
+	}
+	fmt.Printf("]\n")
 }
 
 type DynamicArray struct {
@@ -35,7 +41,7 @@ type DynamicArray struct {
 	Capacity       int
 }
 
-var defaultCapacity = 100
+var defaultCapacity = 10
 
 func NewDynamicArray() *DynamicArray {
 	a := make([]int, defaultCapacity)
@@ -56,15 +62,17 @@ func (da *DynamicArray) append(x int) {
 }
 
 func (da *DynamicArray) get(i int) (int, error) {
-	if i < 0 || i >= da.Size {
-		return 0, fmt.Errorf("index `%v` out of range for array with lenght: %v", i, da.Size)
+	err := da.checkIndex(i)
+	if err != nil {
+		return 0, err
 	}
 	return da.FixedSizeArray[i], nil
 }
 
 func (da *DynamicArray) set(i, x int) error {
-	if i < 0 || i >= da.Size {
-		return fmt.Errorf("index `%v` out of range for array with lenght: %v", i, da.Size)
+	err := da.checkIndex(i)
+	if err != nil {
+		return err
 	}
 	da.FixedSizeArray[i] = x
 	return nil
@@ -92,4 +100,47 @@ func (da *DynamicArray) resize(newSize int) {
 	}
 	da.FixedSizeArray = newA
 	da.Capacity = newSize
+}
+
+func (da *DynamicArray) pop(i int) (int, error) {
+	err := da.checkIndex(i)
+	if err != nil {
+		return 0, err
+	}
+	elem := da.FixedSizeArray[i]
+	for idx := i; idx < da.Size-1; idx++ {
+		da.FixedSizeArray[idx] = da.FixedSizeArray[idx+1]
+	}
+	da.pop_back()
+
+	return elem, nil
+}
+
+func (da *DynamicArray) contains(x int) bool {
+	for _, elem := range da.FixedSizeArray {
+		if elem == x {
+			return true
+		}
+	}
+	return false
+}
+
+func (da *DynamicArray) insert(i int, x int) error {
+	err := da.checkIndex(i)
+	if err != nil {
+		return err
+	}
+	da.append(0)
+	for idx := da.Size - 1; idx > i; idx-- {
+		da.FixedSizeArray[idx] = da.FixedSizeArray[idx-1]
+	}
+	da.FixedSizeArray[i] = x
+	return nil
+}
+
+func (da *DynamicArray) checkIndex(i int) error {
+	if i < 0 || i >= da.Size {
+		return fmt.Errorf("index `%v` out of range for array with lenght: %v", i, da.Size)
+	}
+	return nil
 }
