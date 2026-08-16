@@ -24,68 +24,72 @@ func main() {
 	d := NewDynamicArray()
 	d.append(1)
 	d.append(2)
-	// d.pop_back()
-	// d.pop_back()
 	fmt.Println(d.get(0))
 	fmt.Println(d.get(1))
 	fmt.Println(d.size())
 }
 
 type DynamicArray struct {
-	a []int
+	FixedSizeArray []int
+	Size           int
+	Capacity       int
 }
 
+var defaultCapacity = 100
+
 func NewDynamicArray() *DynamicArray {
-	a := make([]int, 0, 100)
+	a := make([]int, defaultCapacity)
 	return &DynamicArray{
-		a: a,
+		FixedSizeArray: a,
+		Size:           0,
+		Capacity:       defaultCapacity,
 	}
 }
 
 func (da *DynamicArray) append(x int) {
-	curLen := len(da.a)
-	curCap := cap(da.a)
-
-	newLen := curLen + 1
-	if curLen == curCap {
-		newA := make([]int, newLen, 2*newLen)
-		for i, el := range da.a {
-			newA[i] = el
-		}
-		newA[curLen] = x
-		da.a = newA
-		return
+	if da.Size == da.Capacity {
+		da.resize(2 * da.Capacity)
 	}
 
-	da.a = da.a[:newLen]
-	da.a[curLen] = x
+	da.FixedSizeArray[da.Size] = x
+	da.Size++
 }
 
 func (da *DynamicArray) get(i int) (int, error) {
-	if i < 0 || i >= len(da.a) {
-		return 0, fmt.Errorf("index `%v` out of range for array with lenght: %v", i, len(da.a))
+	if i < 0 || i >= da.Size {
+		return 0, fmt.Errorf("index `%v` out of range for array with lenght: %v", i, da.Size)
 	}
-	return da.a[i], nil
+	return da.FixedSizeArray[i], nil
 }
 
 func (da *DynamicArray) set(i, x int) error {
-	if i < 0 || i >= len(da.a) {
-		return fmt.Errorf("index `%v` out of range for array with lenght: %v", i, len(da.a))
+	if i < 0 || i >= da.Size {
+		return fmt.Errorf("index `%v` out of range for array with lenght: %v", i, da.Size)
 	}
-	da.a[i] = x
+	da.FixedSizeArray[i] = x
 	return nil
 }
 
 func (da *DynamicArray) size() int {
-	return len(da.a)
+	return da.Size
 }
 
-func (da *DynamicArray) pop_back() {
-	newLen := len(da.a) - 1
-	if newLen >= 0 {
-		// array with lenght 4, idx goes from 0 to 3
-		// to shrink by 1, i should slice from 0 to 3
-		// since go slice bounds are half-open: a[low:high] includes low up to high-1
-		da.a = da.a[0:newLen]
+func (da *DynamicArray) pop_back() error {
+	if da.Size == 0 {
+		return fmt.Errorf("array is already empty.")
 	}
+	da.Size--
+	if float64(da.Size/da.Capacity) < 0.25 && da.Capacity > defaultCapacity {
+		da.resize(da.Capacity / 2)
+	}
+	return nil
+}
+
+func (da *DynamicArray) resize(newSize int) {
+	newA := make([]int, newSize)
+	for i, el := range da.FixedSizeArray {
+		newA[i] = el
+	}
+	da.FixedSizeArray = newA
+	da.Capacity = newSize
 }
