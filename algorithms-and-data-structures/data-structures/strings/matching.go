@@ -5,8 +5,8 @@ import (
 )
 
 func main() {
-	s := "matheus batista"
-	t := "eus"
+	s := "matheus batistabatistabatistabatistabatistabatistabatistabatistabatistabatistabatistabatistabatistabatistabatistabatistabatistabatistabatistabatistabatistabatistabatistabatistabatistabatistaeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+	t := "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
 	idx := indexOf(s, t)
 	println("index: ", idx)
 }
@@ -30,7 +30,7 @@ func indexOf(s, t string) int {
 	})[0]
 
 	for idx, hash := range rollHashs {
-		if hash == subStrHash {
+		if hash == subStrHash && s[idx:idx+len(t)] == t {
 			return idx
 		}
 	}
@@ -53,17 +53,28 @@ func rollingHash(prm RollingHashParameters) []int {
 	// and m is a large prime number (e.g., 10^9 + 7).
 
 	rollHash := make([]int, 0)
+	cPower := map[int]int{}
+	cPower[0] = 1 % prm.Mod
+	for idx := 1; idx < prm.WindowSize; idx++ {
+		cPower[idx] = (prm.Base * cPower[idx-1]) % prm.Mod
+	}
 
-	for idx := 0; idx <= (len(prm.S) - prm.WindowSize); idx++ {
-		subStr := prm.S[idx : idx+prm.WindowSize]
+	currentHash := 0
+	for idx := 0; idx < prm.WindowSize; idx++ {
+		currentHash = (currentHash + (int(prm.S[idx]) * cPower[prm.WindowSize-(idx+1)])) % prm.Mod
+	}
+	rollHash = append(rollHash, currentHash)
 
-		var subStrAcc float64
-		for idx := 0; idx < len(subStr); idx++ {
-			subStrAcc += float64(subStr[idx]) * math.Pow(float64(prm.Base), float64(prm.WindowSize-(idx+1)))
-		}
+	for idx := 1; idx <= (len(prm.S) - prm.WindowSize); idx++ {
+		// remove the contribution of the first char in the window
+		currentHash = (currentHash - int(prm.S[idx-1])*cPower[prm.WindowSize-1]) % prm.Mod
 
-		subStrHash := int64(subStrAcc) % int64(prm.Mod)
-		rollHash = append(rollHash, int(subStrHash))
+		// shift the windod by on char and add the new char to the hash
+		currentHash = (currentHash*prm.Base + int(prm.S[idx+prm.WindowSize-1])) % prm.Mod
+
+		// prevent negative result from mod
+		currentHash = ((currentHash % prm.Mod) + prm.Mod) % prm.Mod
+		rollHash = append(rollHash, currentHash)
 	}
 
 	return rollHash
