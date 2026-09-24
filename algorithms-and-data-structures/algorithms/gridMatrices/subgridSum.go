@@ -32,19 +32,19 @@ func subgridSum(grid [][]int) [][]int {
 }
 
 func getRightSum(r, c int, grid [][]int) int {
-	if c+1 < len(grid[0]) {
+	if c+1 >= len(grid[0]) {
 		return 0
 	}
 	return grid[r][c+1]
 }
 func getBelowSum(r, c int, grid [][]int) int {
-	if r+1 < len(grid) {
+	if r+1 >= len(grid) {
 		return 0
 	}
 	return grid[r+1][c]
 }
 func getDiagonalSum(r, c int, grid [][]int) int {
-	if r+1 < len(grid) || c+1 < len(grid[0]) {
+	if r+1 >= len(grid) || c+1 >= len(grid[0]) {
 		return 0
 	}
 	return grid[r+1][c+1]
