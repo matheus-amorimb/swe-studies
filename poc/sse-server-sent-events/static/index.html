@@ -1,0 +1,134 @@
+<!doctype html>
+<html>
+
+<head>
+    <link rel="stylesheet" href="dist/uPlot.min.css">
+    <script src="dist/uPlot.iife.min.js"></script>
+    <style>
+        body {
+            margin: 30px;
+        }
+
+        #stocks-container {
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+        }
+
+        #stock-container {
+            display: flex;
+            flex-direction: row;
+            gap: 20px;
+        }
+    </style>
+
+</head>
+
+<body>
+    <div id="stocks-container">
+        <div id="petr4-chart"></div>
+        <div id="vale3-chart"></div>
+    </div>
+</body>
+
+<script>
+    let petr4Plot
+    let vale3Plot
+
+    let slidingWindow = 100
+    let updateFreq = 2
+    let xAxisFrom = getNowInSeconds()
+    let xAxisTo = xAxisFrom + getXAxisInterval()
+
+    function listenToStock(symbol) {
+        eventSrc = new EventSource(`http://localhost:8080/stream/${symbol}`)
+        eventSrc.onmessage = (event) => {
+            plot = getStockPlot(symbol)
+            newData = addPointToStockPriceChart(event.data, plot.data)
+            plot.setData(newData)
+        }
+    }
+
+    function getStockPlot(symbol) {
+        if (symbol == "petr4") {
+            return petr4Plot
+        }
+
+        if (symbol == "vale3") {
+            return vale3Plot
+        }
+    }
+
+    function addPointToStockPriceChart(newValue, data) {
+        if (data.length == slidingWindow) {
+            data[0] = data[0].slice(1)
+            data[1] = data[1].slice(1)
+        }
+        x = Math.floor(Date.now() / 1000)
+        y = newValue
+        data[0].push(x)
+        data[1].push(y)
+        return data
+    }
+
+    function setChartRange() {
+        if (getNowInSeconds() >= xAxisTo + updateFreq) {
+            xAxisFrom = xAxisTo
+            xAxisTo = xAxisFrom + getXAxisInterval()
+        }
+        return [xAxisFrom, xAxisTo]
+    }
+
+    function getNowInSeconds() {
+        return Math.floor(Date.now() / 1000)
+    }
+
+    function getXAxisInterval() {
+        return Math.floor(slidingWindow * updateFreq)
+    }
+
+    function getPlotChart(symbol, newOpts) {
+        let opts = {
+            title: `${symbol.toUpperCase()}`,
+            id: `${symbol}-chart-id`,
+            class: `${symbol}-chart-class`,
+            width: 800,
+            height: 600,
+            series: [
+                {
+                    value: "{HH}:{mm}:{ss}"
+                },
+                {
+                    show: true,
+
+                    spanGaps: false,
+
+                    label: "Price",
+                    value: (self, rawValue) => rawValue == null ? '' : "$" + rawValue,
+
+                    stroke: newOpts.color,
+                    width: 3,
+                }
+            ],
+            scales: {
+                "y": {
+                    auto: false,
+                    range: [0, 100]
+                },
+                "x": {
+                    auto: true,
+                    range: setChartRange
+                }
+            },
+        };
+        return new uPlot(opts, [[], []], document.getElementById(`${symbol}-chart`))
+    }
+
+    petr4Plot = getPlotChart("petr4", { color: "green" })
+    listenToStock("petr4")
+
+    vale3Plot = getPlotChart("vale3", { color: "red" })
+    listenToStock("vale3")
+</script>
+
+</html>
